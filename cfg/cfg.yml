@@ -1,0 +1,11 @@
+Mysql:
+  driver: 'mysql'
+  user: 'mike'
+  host: 'localhost'
+  port: '3306'
+  password: 'mikepass1'
+  dbname: 'newsdata'
+
+Fserver:
+  host: 'localhost'
+  port: '8080'
