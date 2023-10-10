@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"newsdata/cfg"
+	"newsdata/storage"
 	"os"
 
 	"github.com/goccy/go-json"
@@ -20,6 +21,7 @@ type FServer struct {
 	DB       *sql.DB
 	DReform  *reform.DB
 	Auth     map[string]string
+	Storage  storage.UserRepo
 	Logger   *zerolog.Logger
 }
 
@@ -58,12 +60,15 @@ func NewServer(cfg *cfg.Cfg, db *sql.DB) *FServer {
 
 	address := cfg.Fserver.Host + ":" + cfg.Fserver.Port
 
+	userRepo := storage.NewUserRepo(dReform)
+
 	return &FServer{
 		FiberApp: fiber.New(fCfg),
 		Addr:     address,
 		DB:       db,
 		DReform:  dReform,
 		Auth:     mpAuth,
+		Storage:  userRepo,
 		Logger:   &logger,
 	}
 }
@@ -72,6 +77,7 @@ func (s *FServer) Run(ctx context.Context) error {
 	fHandlers := &RBase{
 		dreform: s.DReform,
 		logger:  s.Logger,
+		urepo:   s.Storage,
 	}
 
 	s.MapHandlers(fHandlers)

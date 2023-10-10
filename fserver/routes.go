@@ -2,7 +2,7 @@ package fserver
 
 import (
 	"newsdata/model"
-	"strconv"
+	"newsdata/storage"
 	"strings"
 
 	"github.com/goccy/go-json"
@@ -26,43 +26,15 @@ type Routes interface {
 type RBase struct {
 	dreform *reform.DB
 	logger  *zerolog.Logger
+	urepo   storage.UserRepo
 }
 
 func (r *RBase) GetNews() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		news, err := r.dreform.SelectAllFrom(model.ArticleTable, "")
+		ListData, err := r.urepo.GetNews()
 		if err != nil {
-			r.logger.Error().Msg("Error in Reform")
+			return c.SendStatus(StatusIntErr)
 		}
-
-		var ListData model.ListNews
-
-		var AllNews []model.News
-
-		categories, err := r.dreform.SelectAllFrom(model.CategoryView, "")
-		if err != nil {
-			r.logger.Error().Msg("Error in Reform")
-		}
-
-		for i := 0; i < len(news); i++ {
-			var article model.News
-			id := news[i].(*model.Article).ID
-
-			article.ID = id
-			article.Title = news[i].(*model.Article).Title
-			article.Content = news[i].(*model.Article).Content
-
-			for k := 0; k < len(categories); k++ {
-				if id == categories[k].(*model.Category).ID {
-					article.Categories = append(article.Categories, int(categories[k].(*model.Category).CatID))
-				}
-			}
-
-			AllNews = append(AllNews, article)
-		}
-
-		ListData.Success = true
-		ListData.AllNews = AllNews
 
 		return c.Status(StatusOK).JSON(ListData)
 	}
@@ -78,54 +50,19 @@ func (r *RBase) PostNews() fiber.Handler {
 			return c.Status(StatusBadReq).SendString("Expect /edit/<id> in task handler")
 		}
 
-		id, err := strconv.Atoi(pathParts[1])
-		if err != nil {
-			return c.Status(StatusIntErr).SendString("Internal server error")
-		}
-
 		var inputNews model.News
 
-		err = json.Unmarshal(c.Body(), &inputNews)
+		err := json.Unmarshal(c.Body(), &inputNews)
 		if err != nil {
 			return c.Status(StatusIntErr).SendString("JSON unmarshal error")
 		}
 
-		var inputArticle model.Article
-		inputArticle.ID = inputNews.ID
-		inputArticle.Title = inputNews.Title
-		inputArticle.Content = inputNews.Content
-
-		if inputArticle.Title == "" || inputArticle.Content == "" {
-			oldArticle, err := r.dreform.FindByPrimaryKeyFrom(model.ArticleTable, inputNews.ID)
-			if err != nil {
-				return c.Status(StatusIntErr).SendString("Find old article error")
-			}
-
-			if inputArticle.Title == "" {
-				inputArticle.Title = oldArticle.(*model.Article).Title
-			}
-
-			if inputArticle.Content == "" {
-				inputArticle.Content = oldArticle.(*model.Article).Content
-			}
-		}
-
-		err = r.dreform.Save(&inputArticle)
+		article, err := r.urepo.EditNews(inputNews)
 		if err != nil {
-			return c.Status(StatusIntErr).SendString("reform error")
+			return c.SendStatus(StatusIntErr)
 		}
 
-		if len(inputNews.Categories) > 0 {
-			// удалить старые по NewsId
-			r.dreform.DeleteFrom(model.CategoryView, "WHERE NewsId = ?", inputNews.ID)
-
-			// вставить новые
-			for _, val := range inputNews.Categories {
-				r.dreform.Insert(&model.Category{ID: inputNews.ID, CatID: int32(val)})
-			}
-		}
-
-		return c.Status(StatusOK).SendString(strconv.Itoa(id))
+		return c.Status(StatusOK).JSON(article)
 	}
 }
 
