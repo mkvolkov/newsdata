@@ -3,6 +3,7 @@ package fserver
 import (
 	"newsdata/model"
 	"newsdata/storage"
+	"strconv"
 	"strings"
 
 	"github.com/goccy/go-json"
@@ -20,7 +21,7 @@ const (
 
 type Routes interface {
 	GetNews() fiber.Handler
-	PostNews() fiber.Handler
+	EditNews() fiber.Handler
 }
 
 type RBase struct {
@@ -40,7 +41,7 @@ func (r *RBase) GetNews() fiber.Handler {
 	}
 }
 
-func (r *RBase) PostNews() fiber.Handler {
+func (r *RBase) EditNews() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		path := c.Path()
 		mPath := strings.Trim(path, "/")
@@ -55,6 +56,17 @@ func (r *RBase) PostNews() fiber.Handler {
 		err := json.Unmarshal(c.Body(), &inputNews)
 		if err != nil {
 			return c.Status(StatusIntErr).SendString("JSON unmarshal error")
+		}
+
+		// простая валидация:
+		// нужно проверить, что ID в пути равен ID в запросе JSON
+		id, err := strconv.Atoi(pathParts[1])
+		if err != nil {
+			return c.SendStatus(StatusIntErr)
+		}
+
+		if id != int(inputNews.ID) {
+			return c.SendStatus(StatusBadReq)
 		}
 
 		article, err := r.urepo.EditNews(inputNews)
@@ -89,5 +101,5 @@ func (s *FServer) MapHandlers(rs Routes) {
 	}))
 
 	s.FiberApp.Get("/list", rs.GetNews())
-	s.FiberApp.Post("/edit/:Id", rs.PostNews())
+	s.FiberApp.Post("/edit/:Id", rs.EditNews())
 }
