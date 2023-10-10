@@ -7,6 +7,7 @@ import (
 
 	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/basicauth"
 	"github.com/rs/zerolog"
 	"gopkg.in/reform.v1"
 )
@@ -129,6 +130,27 @@ func (r *RBase) PostNews() fiber.Handler {
 }
 
 func (s *FServer) MapHandlers(rs Routes) {
+	s.FiberApp.Use(basicauth.New(basicauth.Config{
+		Users: s.Auth,
+		Realm: "Forbidden",
+		Authorizer: func(user, pass string) bool {
+			passAuth, ok := s.Auth[user]
+			if ok {
+				if passAuth == pass {
+					return true
+				} else {
+					return false
+				}
+			} else {
+				return false
+			}
+		},
+
+		Unauthorized: func(c *fiber.Ctx) error {
+			return c.SendStatus(StatusBadReq)
+		},
+	}))
+
 	s.FiberApp.Get("/list", rs.GetNews())
 	s.FiberApp.Post("/edit/:Id", rs.PostNews())
 }

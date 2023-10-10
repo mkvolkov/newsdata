@@ -3,6 +3,7 @@ package fserver
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"newsdata/cfg"
 	"os"
 
@@ -18,6 +19,7 @@ type FServer struct {
 	Addr     string
 	DB       *sql.DB
 	DReform  *reform.DB
+	Auth     map[string]string
 	Logger   *zerolog.Logger
 }
 
@@ -35,6 +37,25 @@ func NewServer(cfg *cfg.Cfg, db *sql.DB) *FServer {
 		return nil
 	}
 
+	filePass, err := os.Open("login.txt")
+	if err != nil {
+		logger.WithLevel(zerolog.FatalLevel).Msgf("Fatal error: %v", err)
+	}
+
+	var user string
+	var pass string
+
+	var mpAuth = make(map[string]string)
+
+	for {
+		_, err := fmt.Fscanf(filePass, "%s %s\n", &user, &pass)
+		if err != nil {
+			break
+		}
+
+		mpAuth[user] = pass
+	}
+
 	address := cfg.Fserver.Host + ":" + cfg.Fserver.Port
 
 	return &FServer{
@@ -42,6 +63,7 @@ func NewServer(cfg *cfg.Cfg, db *sql.DB) *FServer {
 		Addr:     address,
 		DB:       db,
 		DReform:  dReform,
+		Auth:     mpAuth,
 		Logger:   &logger,
 	}
 }
