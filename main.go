@@ -4,11 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"newsdata/cfg"
 	"newsdata/fserver"
+	"os"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/rs/zerolog"
 )
 
 func InitDB(cfg *cfg.Cfg) (*sql.DB, error) {
@@ -38,15 +39,16 @@ func InitDB(cfg *cfg.Cfg) (*sql.DB, error) {
 }
 
 func main() {
+	logger := zerolog.New(os.Stdout)
 	cMainCfg := &cfg.Cfg{}
 	err := cfg.LoadConfig(cMainCfg)
 	if err != nil {
-		log.Fatalln("Error in LoadConfig: ", err)
+		logger.Fatal().Msgf("Couldn't read config: %v", err)
 	}
 
 	dBase, err := InitDB(cMainCfg)
 	if err != nil {
-		log.Fatalln(err)
+		logger.Fatal().Msgf("Cannot connect to database: %v", err)
 	}
 
 	fCtx, cancel := context.WithCancel(context.Background())
@@ -55,6 +57,6 @@ func main() {
 	fServer := fserver.NewServer(cMainCfg, dBase)
 	err = fServer.Run(fCtx)
 	if err != nil {
-		log.Fatalln("couldn't run Fiber server, exiting...")
+		logger.Fatal().Msgf("Cannot run Fiber server: %v", err)
 	}
 }

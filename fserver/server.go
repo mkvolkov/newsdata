@@ -41,7 +41,7 @@ func NewServer(cfg *cfg.Cfg, db *sql.DB) *FServer {
 
 	filePass, err := os.Open("login.txt")
 	if err != nil {
-		logger.WithLevel(zerolog.FatalLevel).Msgf("Fatal error: %v", err)
+		logger.Fatal().Msgf("Fatal error: %v", err)
 	}
 
 	var user string
