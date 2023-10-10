@@ -5,6 +5,10 @@ Mysql:
   port: '3306'
   password: 'mikepass1'
   dbname: 'newsdata'
+  maxopen: 10
+  maxlife: 10
+  maxidle: 5
+  maxtime: 5
 
 Fserver:
   host: 'localhost'

@@ -1,6 +1,10 @@
 package cfg
 
-import "github.com/spf13/viper"
+import (
+	"time"
+
+	"github.com/spf13/viper"
+)
 
 type Cfg struct {
 	Mysql   CfgMysql
@@ -8,12 +12,16 @@ type Cfg struct {
 }
 
 type CfgMysql struct {
-	Driver   string `json:"driver" validate:"required"`
-	Host     string `json:"host" validate:"required"`
-	Port     string `json:"port" validate:"required"`
-	User     string `json:"user" validate:"required"`
-	Password string `json:"password"`
-	Dbname   string `json:"dbname" validate:"required"`
+	Driver   string        `json:"driver" validate:"required"`
+	Host     string        `json:"host" validate:"required"`
+	Port     string        `json:"port" validate:"required"`
+	User     string        `json:"user" validate:"required"`
+	Password string        `json:"password"`
+	Dbname   string        `json:"dbname" validate:"required"`
+	Maxopen  int           `json:"maxopen"`
+	Maxlife  time.Duration `json:"maxlife"`
+	Maxidle  int           `json:"maxidle"`
+	Maxtime  time.Duration `json:"maxtime"`
 }
 
 type CfgServer struct {

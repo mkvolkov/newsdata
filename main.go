@@ -7,6 +7,7 @@ import (
 	"newsdata/cfg"
 	"newsdata/fserver"
 	"os"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/rs/zerolog"
@@ -28,6 +29,11 @@ func InitDB(cfg *cfg.Cfg) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	conn.SetMaxOpenConns(cfg.Mysql.Maxopen)
+	conn.SetConnMaxLifetime(time.Second * cfg.Mysql.Maxlife)
+	conn.SetMaxIdleConns(cfg.Mysql.Maxidle)
+	conn.SetConnMaxIdleTime(time.Second * cfg.Mysql.Maxtime)
 
 	// проверка базы данных
 	err = conn.Ping()
