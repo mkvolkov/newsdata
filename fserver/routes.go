@@ -4,7 +4,6 @@ import (
 	"newsdata/model"
 	"newsdata/storage"
 	"strconv"
-	"strings"
 
 	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
@@ -40,15 +39,9 @@ func (r *RBase) EditNews() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		r.logger.Info().Msgf("Edit News: %s", string(c.Body()))
 
-		path := c.Path()
-		mPath := strings.Trim(path, "/")
-		pathParts := strings.Split(mPath, "/")
+		ID := c.Params("Id")
 
-		if len(pathParts) != 2 {
-			return c.Status(fiber.StatusBadRequest).SendString("Expect /edit/<id> in task handler")
-		}
-
-		var inputNews model.News
+		var inputNews model.Article
 
 		err := json.Unmarshal(c.Body(), &inputNews)
 		if err != nil {
@@ -57,7 +50,7 @@ func (r *RBase) EditNews() fiber.Handler {
 
 		// простая валидация:
 		// нужно проверить, что ID в пути равен ID в запросе JSON
-		id, err := strconv.Atoi(pathParts[1])
+		id, err := strconv.Atoi(ID)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).SendString("strconv error")
 		}
@@ -80,16 +73,9 @@ func (s *FServer) MapHandlers(rs Routes) {
 		Users: s.Auth,
 		Realm: "Forbidden",
 		Authorizer: func(user, pass string) bool {
-			passAuth, ok := s.Auth[user]
-			if ok {
-				if passAuth == pass {
-					return true
-				} else {
-					return false
-				}
-			} else {
-				return false
-			}
+			passAuth, _ := s.Auth[user]
+
+			return passAuth == pass
 		},
 
 		Unauthorized: func(c *fiber.Ctx) error {

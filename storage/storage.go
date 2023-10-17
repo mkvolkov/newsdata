@@ -2,21 +2,23 @@ package storage
 
 import (
 	"newsdata/model"
+	"sync"
 
 	"gopkg.in/reform.v1"
 )
 
 type userRepo struct {
+	Mtx     *sync.Mutex
 	DReform *reform.DB
 }
 
 type UserRepo interface {
 	GetNews() (model.ListNews, error)
-	EditNews(model.News) (model.Article, error)
+	EditNews(model.Article) (model.Article, error)
 }
 
 func NewUserRepo(refDB *reform.DB) userRepo {
-	return userRepo{DReform: refDB}
+	return userRepo{Mtx: &sync.Mutex{}, DReform: refDB}
 }
 
 func (u userRepo) GetNews() (data model.ListNews, err error) {
@@ -25,30 +27,22 @@ func (u userRepo) GetNews() (data model.ListNews, err error) {
 		return data, err
 	}
 
-	var ListData model.ListNews
-
-	var AllNews []model.News
-
 	categories, err := u.DReform.SelectAllFrom(model.CategoryView, "")
 	if err != nil {
 		return
 	}
 
+	var ListData model.ListNews
+
+	var AllNews []*model.Article
+
 	for i := 0; i < len(news); i++ {
-		var article model.News
-		id := news[i].(*model.Article).ID
-
-		article.ID = id
-		article.Title = news[i].(*model.Article).Title
-		article.Content = news[i].(*model.Article).Content
-
+		AllNews = append(AllNews, news[i].(*model.Article))
 		for k := 0; k < len(categories); k++ {
-			if id == categories[k].(*model.Category).ID {
-				article.Categories = append(article.Categories, int(categories[k].(*model.Category).CatID))
+			if AllNews[i].ID == categories[k].(*model.Category).ID {
+				AllNews[i].Categories = append(AllNews[i].Categories, int(categories[k].(*model.Category).CatID))
 			}
 		}
-
-		AllNews = append(AllNews, article)
 	}
 
 	ListData.Success = true
@@ -57,14 +51,12 @@ func (u userRepo) GetNews() (data model.ListNews, err error) {
 	return ListData, nil
 }
 
-func (u userRepo) EditNews(inputNews model.News) (model.Article, error) {
-	var inputArticle model.Article
-	inputArticle.ID = inputNews.ID
-	inputArticle.Title = inputNews.Title
-	inputArticle.Content = inputNews.Content
+func (u userRepo) EditNews(inputArticle model.Article) (model.Article, error) {
+	u.Mtx.Lock()
+	defer u.Mtx.Unlock()
 
 	if inputArticle.Title == "" || inputArticle.Content == "" {
-		oldArticle, err := u.DReform.FindByPrimaryKeyFrom(model.ArticleTable, inputNews.ID)
+		oldArticle, err := u.DReform.FindByPrimaryKeyFrom(model.ArticleTable, inputArticle.ID)
 		if err != nil {
 			return inputArticle, err
 		}
@@ -83,14 +75,20 @@ func (u userRepo) EditNews(inputNews model.News) (model.Article, error) {
 		return inputArticle, err
 	}
 
-	if len(inputNews.Categories) > 0 {
+	nCat := len(inputArticle.Categories)
+
+	if nCat > 0 {
 		// удалить старые по NewsId
-		u.DReform.DeleteFrom(model.CategoryView, "WHERE NewsId = ?", inputNews.ID)
+		u.DReform.DeleteFrom(model.CategoryView, "WHERE NewsId = ?", inputArticle.ID)
 
 		// вставить новые
-		for _, val := range inputNews.Categories {
-			u.DReform.Insert(&model.Category{ID: inputNews.ID, CatID: int32(val)})
+		var batch []reform.Struct
+
+		for _, val := range inputArticle.Categories {
+			batch = append(batch, &model.Category{ID: inputArticle.ID, CatID: int32(val)})
 		}
+
+		u.DReform.InsertMulti(batch...)
 	}
 
 	return inputArticle, nil

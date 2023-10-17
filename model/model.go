@@ -4,9 +4,10 @@ package model
 
 // reform:News
 type Article struct {
-	ID      int32  `reform:"id,pk"`
-	Title   string `reform:"title"`
-	Content string `reform:"content"`
+	ID         int32  `json:"Id" reform:"id,pk"`
+	Title      string `json:"Title" reform:"title"`
+	Content    string `json:"Content" reform:"content"`
+	Categories []int  `json:"Categories" reform:"-"`
 }
 
 // reform:NewsCategories
@@ -16,13 +17,6 @@ type Category struct {
 }
 
 type ListNews struct {
-	Success bool   `json:"Success"`
-	AllNews []News `json:"News"`
-}
-
-type News struct {
-	ID         int32  `json:"Id"`
-	Title      string `json:"Title"`
-	Content    string `json:"Content"`
-	Categories []int  `json:"Categories"`
+	Success bool       `json:"Success"`
+	AllNews []*Article `json:"News"`
 }
